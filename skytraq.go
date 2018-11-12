@@ -14,8 +14,10 @@ func Run() {
 	var c *Connection
 	for {
 		if err != nil {
-			logrus.Error("reconnecting due to error", err)
-			c.Close()
+			logrus.Error("reconnecting due to error ", err)
+			if c != nil {
+				c.Close()
+			}
 			c = nil
 			time.Sleep(time.Second)
 		}
