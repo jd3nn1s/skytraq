@@ -1,9 +1,7 @@
 package skytraq
 
 import (
-	"time"
-
-	"github.com/sirupsen/logrus"
+	"github.com/pkg/errors"
 )
 
 type MessageCallbacks struct {
@@ -11,38 +9,11 @@ type MessageCallbacks struct {
 	NavData func(NavData)
 }
 
-func Run(portName string, cb MessageCallbacks) {
-	var err error
-	var f *Frame
-	var c *Connection
-	for {
+func (c *Connection) Start(cb MessageCallbacks) error {
+	for  {
+		f, err := c.ReadFrame()
 		if err != nil {
-			logrus.Error("reconnecting due to error ", err)
-			if c != nil {
-				c.Close()
-			}
-			c = nil
-			time.Sleep(time.Second)
-		}
-		if c == nil {
-			c = Connect(portName)
-			err = c.Open()
-			if err != nil {
-				continue
-			}
-
-			err = c.WriteFrame(&Frame{
-				ID:   CommandQuerySoftwareVersion,
-				Data: []byte{1},
-			})
-			if err != nil {
-				continue
-			}
-		}
-
-		f, err = c.ReadFrame()
-		if err != nil {
-			continue
+			return err
 		}
 
 		// successfully read frame, dispatch it
@@ -51,8 +22,7 @@ func Run(portName string, cb MessageCallbacks) {
 			if cb.SoftwareVersion != nil {
 				version, err := f.softwareVersion()
 				if err != nil {
-					logrus.WithField("err", err).Error("error when converting to SoftwareVersion structure")
-					continue
+					return errors.Wrapf(err, "error when converting to SoftwareVersion structure")
 				}
 				cb.SoftwareVersion(version)
 			}
@@ -60,8 +30,7 @@ func Run(portName string, cb MessageCallbacks) {
 			if cb.NavData != nil {
 				navData, err := f.navData()
 				if err != nil {
-					logrus.WithField("err", err).Error("error when converting to NavData structure")
-					continue
+					return errors.Wrapf(err,"error when converting to NavData structure")
 				}
 				cb.NavData(navData)
 			}

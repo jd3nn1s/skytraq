@@ -28,7 +28,7 @@ type Connection struct {
 	buf [DataMaxSize + EndMarkerSize]byte
 }
 
-func Connect(portName string) *Connection {
+func Connect(portName string) (*Connection, error) {
 	c := &serial.Config{
 		Name:        portName,
 		Baud:        baud,
@@ -39,8 +39,8 @@ func Connect(portName string) *Connection {
 		portConfig: c,
 	}
 
-	_ = conn.Open()
-	return &conn
+	err := conn.Open()
+	return &conn, err
 }
 
 func (c *Connection) Open() error {
@@ -49,7 +49,14 @@ func (c *Connection) Open() error {
 	if err != nil {
 		return err
 	}
-	return c.port.Flush()
+	if err = c.port.Flush(); err != nil {
+		return err
+	}
+
+	return c.WriteFrame(&Frame{
+		ID:   CommandQuerySoftwareVersion,
+		Data: []byte{1},
+	})
 }
 
 func (c *Connection) Close() error {
