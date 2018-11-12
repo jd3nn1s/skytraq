@@ -6,9 +6,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func Run() {
-	// skytraq_read_software_version
+type MessageCallbacks struct {
+	SoftwareVersion func(SoftwareVersion)
+	NavData func(NavData)
+}
 
+func Run(cb MessageCallbacks) {
 	var err error
 	var f *Frame
 	var c *Connection
@@ -35,22 +38,23 @@ func Run() {
 			if err != nil {
 				continue
 			}
-
-			f, err = c.ReadFrame()
-			if err != nil {
-				continue
-			}
-
-			logrus.Info(f.softwareVersion())
 		}
 
-		// SKYTRAQ_RESPONSE_NAVIGATION_DATA
 		f, err = c.ReadFrame()
 		if err != nil {
 			continue
 		}
-		if f.ID == ResponseNavData {
 
+		// successfully read frame, dispatch it
+		switch f.ID {
+		case ResponseSoftwareVersion:
+			if cb.SoftwareVersion != nil {
+				cb.SoftwareVersion(f.softwareVersion())
+			}
+		case ResponseNavData:
+			if cb.NavData != nil {
+				cb.NavData(f.navData())
+			}
 		}
 	}
 }

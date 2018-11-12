@@ -239,7 +239,7 @@ func (c *Connection) readACK(id MessageID) error {
 				WithField("irrelevantFrameCount", irrelevantFrameCount).Warn("unexpected NACK")
 			irrelevantFrameCount++
 		default:
-			logrus.WithField("messageID", respFrame.ID).Debug("ignoring non-ACK/NACK frame", respFrame.ID)
+			logrus.WithField("messageID", respFrame.ID).Warn("ignoring non-ACK/NACK frame")
 			irrelevantFrameCount++
 		}
 		if irrelevantFrameCount > maxIncorrectMessageIDCount {

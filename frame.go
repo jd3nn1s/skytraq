@@ -2,6 +2,7 @@ package skytraq
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 )
 
 type MessageID byte
@@ -85,6 +86,12 @@ func (f *Frame) ackMessageID() MessageID {
 }
 
 func (f *Frame) softwareVersion() SoftwareVersion {
+	const expectedLen = 13
+	if len(f.Data) != expectedLen {
+		logrus.WithField("length", len(f.Data)).
+			WithField("expectedLen", expectedLen).Error("expecting more data")
+		return SoftwareVersion{}
+	}
 	return SoftwareVersion{
 		Kernel:   Version{int(f.Data[2]), int(f.Data[3]), int(f.Data[4])},
 		ODM:      Version{int(f.Data[6]), int(f.Data[7]), int(f.Data[8])},
@@ -93,16 +100,22 @@ func (f *Frame) softwareVersion() SoftwareVersion {
 }
 
 func (f *Frame) navData() NavData {
+	const expectedLen = 58
+	if len(f.Data) != expectedLen {
+		logrus.WithField("length", len(f.Data)).
+			WithField("expectedLen", expectedLen).Error("expecting more data")
+		return NavData{}
+	}
 	return NavData{
 		Fix:            FixMode(f.Data[0]),
 		SatelliteCount: int(f.Data[2]),
-		Latitude:       bytesToInt32(f.Data[8:11]),
-		Longitude:      bytesToInt32(f.Data[12:15]),
-		Altitude:       bytesToInt32(f.Data[20:23]),
-		VX:             bytesToInt32(f.Data[46:49]),
-		VY:             bytesToInt32(f.Data[50:53]),
-		VZ:             bytesToInt32(f.Data[54:57]),
-		HDOP:           bytesToInt16(f.Data[28:29]),
+		Latitude:       bytesToInt32(f.Data[8:12]),
+		Longitude:      bytesToInt32(f.Data[12:16]),
+		Altitude:       bytesToInt32(f.Data[20:24]),
+		HDOP:           bytesToInt16(f.Data[28:30]),
+		VX:             bytesToInt32(f.Data[46:50]),
+		VY:             bytesToInt32(f.Data[50:54]),
+		VZ:             bytesToInt32(f.Data[54:58]),
 	}
 }
 
