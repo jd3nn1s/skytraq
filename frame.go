@@ -1,7 +1,9 @@
 package skytraq
 
 import (
+	"encoding/binary"
 	"fmt"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -85,44 +87,39 @@ func (f *Frame) ackMessageID() MessageID {
 	return MessageID(f.Data[0])
 }
 
-func (f *Frame) softwareVersion() SoftwareVersion {
+func (f *Frame) softwareVersion() (SoftwareVersion, error) {
 	const expectedLen = 13
 	if len(f.Data) != expectedLen {
 		logrus.WithField("length", len(f.Data)).
 			WithField("expectedLen", expectedLen).Error("expecting more data")
-		return SoftwareVersion{}
+		return SoftwareVersion{}, errors.Errorf("softwareVersion conversion requires %v bytes but received %v",
+			expectedLen, len(f.Data))
 	}
 	return SoftwareVersion{
 		Kernel:   Version{int(f.Data[2]), int(f.Data[3]), int(f.Data[4])},
 		ODM:      Version{int(f.Data[6]), int(f.Data[7]), int(f.Data[8])},
 		Revision: Version{2000 + int(f.Data[10]), int(f.Data[11]), int(f.Data[12])},
-	}
+	}, nil
 }
 
-func (f *Frame) navData() NavData {
+func (f *Frame) navData() (NavData, error) {
 	const expectedLen = 58
 	if len(f.Data) != expectedLen {
 		logrus.WithField("length", len(f.Data)).
 			WithField("expectedLen", expectedLen).Error("expecting more data")
-		return NavData{}
+		return NavData{}, errors.Errorf("navdata conversion requires %v bytes but received %v", expectedLen,
+			len(f.Data))
 	}
+
 	return NavData{
 		Fix:            FixMode(f.Data[0]),
 		SatelliteCount: int(f.Data[2]),
-		Latitude:       bytesToInt32(f.Data[8:12]),
-		Longitude:      bytesToInt32(f.Data[12:16]),
-		Altitude:       bytesToInt32(f.Data[20:24]),
-		HDOP:           bytesToInt16(f.Data[28:30]),
-		VX:             bytesToInt32(f.Data[46:50]),
-		VY:             bytesToInt32(f.Data[50:54]),
-		VZ:             bytesToInt32(f.Data[54:58]),
-	}
-}
-
-func bytesToInt32(b []byte) int {
-	return int(b[0])<<24 | int(b[1])<<16 | int(b[2])<<8 | int(b[3])
-}
-
-func bytesToInt16(b []byte) int {
-	return int(b[0])<<8 | int(b[1])
+		Latitude:       int(binary.BigEndian.Uint32(f.Data[8:12])),
+		Longitude:      int(binary.BigEndian.Uint32(f.Data[12:16])),
+		Altitude:       int(binary.BigEndian.Uint32(f.Data[20:24])),
+		HDOP:           int(binary.BigEndian.Uint16(f.Data[28:30])),
+		VX:             int(binary.BigEndian.Uint32(f.Data[46:50])),
+		VY:             int(binary.BigEndian.Uint32(f.Data[50:54])),
+		VZ:             int(binary.BigEndian.Uint32(f.Data[54:58])),
+	}, nil
 }

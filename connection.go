@@ -2,6 +2,7 @@ package skytraq
 
 import (
 	"bytes"
+	"encoding/binary"
 	"github.com/jd3nn1s/serial"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -27,9 +28,9 @@ type Connection struct {
 	buf [DataMaxSize + EndMarkerSize]byte
 }
 
-func Connect() *Connection {
+func Connect(portName string) *Connection {
 	c := &serial.Config{
-		Name:        "/dev/ttyAMA0",
+		Name:        portName,
 		Baud:        baud,
 		ReadTimeout: 10 * time.Second,
 	}
@@ -117,7 +118,7 @@ PreambleFind:
 		break PreambleFind
 	}
 
-	size := int(uint16(startBuf[2])<<8 + uint16(startBuf[3]))
+	size := int(binary.BigEndian.Uint16(startBuf[2:4]))
 	logrus.WithField("payloadSize", size).Debug()
 	tmpBuf := c.buf[:size+EndMarkerSize]
 	if err := c.readBytes(tmpBuf); err != nil {
@@ -146,10 +147,12 @@ func (c *Connection) writeFrame(f *Frame) error {
 	startSendBuf := [5]byte{
 		0xa0,
 		0xa1,
-		byte(lenPayload>>8) & 0xff,
-		byte(lenPayload & 0xff),
+		0x0,	// this and next byte replaced with payload size
+		0x0,
 		byte(f.ID),
 	}
+
+	binary.BigEndian.PutUint16(startSendBuf[2:4], uint16(lenPayload))
 
 	if err := c.writeBytes(startSendBuf[:]); err != nil {
 		return err
