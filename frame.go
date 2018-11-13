@@ -50,22 +50,22 @@ func (sv SoftwareVersion) String() string {
 
 const (
 	ResponseSoftwareVersion MessageID = 0x80
-	ResponseSoftwareCRC               = 0x81
-	ResponseACK                       = 0x83
-	ResponseNACK                      = 0x84
-	ResponsePositionRate              = 0x86
-	ResponseNavData                   = 0xA8
-	ResponseEphemerisData             = 0xB1
-	ResponsePowerMode                 = 0xB9
+	ResponseSoftwareCRC     MessageID = 0x81
+	ResponseACK             MessageID = 0x83
+	ResponseNACK            MessageID = 0x84
+	ResponsePositionRate    MessageID = 0x86
+	ResponseNavData         MessageID = 0xA8
+	ResponseEphemerisData   MessageID = 0xB1
+	ResponsePowerMode       MessageID = 0xB9
 )
 
 const (
 	CommandSystemRestart        MessageID = 0x01
-	CommandQuerySoftwareVersion           = 0x02
-	CommandQuerySoftwareCRC               = 0x03
-	CommandQueryPositionRate              = 0x10
-	CommandQueryPowerMode                 = 0x15
-	CommandGetEphermeris                  = 0x30
+	CommandQuerySoftwareVersion MessageID = 0x02
+	CommandQuerySoftwareCRC     MessageID = 0x03
+	CommandQueryPositionRate    MessageID = 0x10
+	CommandQueryPowerMode       MessageID = 0x15
+	CommandGetEphermeris        MessageID = 0x30
 )
 
 const (
@@ -75,9 +75,9 @@ const (
 	Fix3DAndDGNSS         = 3
 )
 
-func (f *Frame) checksum() byte {
-	cs := byte(f.ID)
-	for _, v := range f.Data {
+func checksum(id MessageID, data []byte) byte {
+	cs := byte(id)
+	for _, v := range data {
 		cs = cs ^ v
 	}
 	return cs

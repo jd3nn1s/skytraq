@@ -6,6 +6,7 @@ import (
 	"github.com/jd3nn1s/serial"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"io"
 	"time"
 )
 
@@ -15,17 +16,30 @@ const (
 	baud          = 230400
 
 	maxIncorrectMessageIDCount = 5
+)
+
+var (
 	maxWriteRetries = 3
 )
 
 // All binary protocol data is big endian
 
+type SerialPort interface {
+	Flush() error
+	io.ReadWriteCloser
+}
+
 type Connection struct {
 	portConfig *serial.Config
-	port       *serial.Port
+	port       SerialPort
 
 	// max data size + checksum + end of sequence marker
 	buf [DataMaxSize + EndMarkerSize]byte
+}
+
+// allow mocking
+var openPort = func(config *serial.Config) (SerialPort, error) {
+	return serial.OpenPort(config)
 }
 
 func Connect(portName string) (*Connection, error) {
@@ -39,13 +53,13 @@ func Connect(portName string) (*Connection, error) {
 		portConfig: c,
 	}
 
-	err := conn.Open()
+	err := conn.open()
 	return &conn, err
 }
 
-func (c *Connection) Open() error {
+func (c *Connection) open() error {
 	var err error
-	c.port, err = serial.OpenPort(c.portConfig)
+	c.port, err = openPort(c.portConfig)
 	if err != nil {
 		return err
 	}
@@ -100,29 +114,34 @@ func (c *Connection) ReadFrame() (*Frame, error) {
 
 PreambleFind:
 	for {
-		preamblePos := 0
 		if err := c.readBytes(startBuf[:]); err != nil {
 			return nil, errors.Wrapf(err, "unable to read start of frame")
 		}
 
-		for ;startBuf[preamblePos] != 0xa0; preamblePos++ {
-			if preamblePos == 3 {
-				continue PreambleFind
+		preamblePos := 0
+		for {
+			for ; startBuf[preamblePos] != 0xa0; preamblePos++ {
+				if preamblePos == 3 {
+					continue PreambleFind
+				}
 			}
-		}
-		if preamblePos > 0 {
-			logrus.WithField("offset", preamblePos).Info("misaligned data received")
-			for copyPos := preamblePos; copyPos <= 3; copyPos++ {
-				startBuf[copyPos-preamblePos] = startBuf[copyPos]
+			if preamblePos > 0 {
+				logrus.WithField("offset", preamblePos).Info("misaligned data received")
+				destPos := 0
+				for ; preamblePos+destPos < 4; destPos++ {
+					startBuf[destPos] = startBuf[preamblePos+destPos]
+				}
+				c.readBytes(startBuf[destPos:])
+				preamblePos = 0
 			}
-			c.readBytes(startBuf[preamblePos:])
-		}
 
-		// TODO: preamble could be at pos 1+
-		if startBuf[1] != 0xa1 {
-			continue PreambleFind
+			if startBuf[1] != 0xa1 {
+				// check rest of existing startBuf
+				preamblePos++
+				continue
+			}
+			break PreambleFind
 		}
-		break PreambleFind
 	}
 
 	size := int(binary.BigEndian.Uint16(startBuf[2:4]))
@@ -140,7 +159,7 @@ PreambleFind:
 		ID:   MessageID(c.buf[0]),
 		Data: c.buf[1:size],
 	}
-	cs := f.checksum()
+	cs := checksum(f.ID, f.Data)
 	logrus.WithField("checksum", cs).Debug()
 	if cs != c.buf[size] {
 		return nil, errors.Errorf("expected checksum %v but found %v", cs, c.buf[size])
@@ -171,7 +190,7 @@ func (c *Connection) writeFrame(f *Frame) error {
 	}
 
 	endSendBuf := [3]byte{
-		f.checksum(),
+		checksum(f.ID, f.Data),
 		0x0d,
 		0x0a,
 	}

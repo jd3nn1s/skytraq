@@ -6,11 +6,11 @@ import (
 
 type MessageCallbacks struct {
 	SoftwareVersion func(SoftwareVersion)
-	NavData func(NavData)
+	NavData         func(NavData)
 }
 
 func (c *Connection) Start(cb MessageCallbacks) error {
-	for  {
+	for {
 		f, err := c.ReadFrame()
 		if err != nil {
 			return err
@@ -30,7 +30,7 @@ func (c *Connection) Start(cb MessageCallbacks) error {
 			if cb.NavData != nil {
 				navData, err := f.navData()
 				if err != nil {
-					return errors.Wrapf(err,"error when converting to NavData structure")
+					return errors.Wrapf(err, "error when converting to NavData structure")
 				}
 				cb.NavData(navData)
 			}
