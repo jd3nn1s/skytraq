@@ -173,7 +173,7 @@ func (c *Connection) writeFrame(f *Frame) error {
 	startSendBuf := [5]byte{
 		0xa0,
 		0xa1,
-		0x0,	// this and next byte replaced with payload size
+		0x0, // this and next byte replaced with payload size
 		0x0,
 		byte(f.ID),
 	}
@@ -237,7 +237,7 @@ func (c *Connection) WriteFrame(f *Frame) error {
 	if retries == 0 {
 		return errors.Wrapf(err, "exceeded retries")
 	} else if retries < maxWriteRetries {
-		logrus.WithField("retryCount", maxWriteRetries - retries).Warn("write frame successful after retry")
+		logrus.WithField("retryCount", maxWriteRetries-retries).Warn("write frame successful after retry")
 	}
 	return nil
 }

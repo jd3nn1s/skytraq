@@ -1,15 +1,17 @@
 package skytraq
 
 import (
+	"context"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
-type MessageCallbacks struct {
+type Callbacks struct {
 	SoftwareVersion func(SoftwareVersion)
 	NavData         func(NavData)
 }
 
-func (c *Connection) Start(cb MessageCallbacks) error {
+func (c *Connection) Start(ctx context.Context, cb Callbacks) error {
 	for {
 		f, err := c.ReadFrame()
 		if err != nil {
@@ -34,6 +36,13 @@ func (c *Connection) Start(cb MessageCallbacks) error {
 				}
 				cb.NavData(navData)
 			}
+		}
+
+		select {
+		case <-ctx.Done():
+			logrus.Infof("gps: context: %v", ctx.Err())
+			return nil
+		default:
 		}
 	}
 }

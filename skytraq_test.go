@@ -1,6 +1,7 @@
 package skytraq
 
 import (
+	"context"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"io"
@@ -16,7 +17,7 @@ func TestStart(t *testing.T) {
 		SoftwareVersion bool
 		NavData         bool
 	}{}
-	err := c.Start(MessageCallbacks{
+	err := c.Start(context.Background(), Callbacks{
 		SoftwareVersion: func(version SoftwareVersion) {
 			cbResult.SoftwareVersion = true
 			assert.Equal(t, 2007, version.Revision.Major)
@@ -31,4 +32,3 @@ func TestStart(t *testing.T) {
 	assert.True(t, cbResult.SoftwareVersion)
 	assert.True(t, cbResult.NavData)
 }
-
