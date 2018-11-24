@@ -61,9 +61,12 @@ func (c *Connection) open() error {
 	var err error
 	c.port, err = openPort(c.portConfig)
 	if err != nil {
+		c.port = nil
 		return err
 	}
 	if err = c.port.Flush(); err != nil {
+		c.port.Close()
+		c.port = nil
 		return err
 	}
 
